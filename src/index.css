@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	html {
+		@apply antialiased;
+	}
+
+	body {
+		@apply text-gray-100;
+	}
+}
+
+@layer components {
+	.btn {
+		@apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	.btn-primary {
+		@apply btn bg-forge-600 text-white hover:bg-forge-700 focus:ring-forge-500;
+	}
+
+	.btn-secondary {
+		@apply btn bg-gray-700 text-gray-200 hover:bg-gray-600 focus:ring-gray-500;
+	}
+
+	.btn-ghost {
+		@apply btn bg-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800;
+	}
+
+	.card {
+		@apply bg-gray-800 rounded-xl shadow-sm border border-gray-700;
+	}
+
+	.input {
+		@apply block w-full px-3 py-2 text-sm border border-gray-600 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-forge-500 focus:border-forge-500 placeholder-gray-500;
+	}
+
+	.panel {
+		@apply bg-gray-850 border-gray-700;
+	}
+}
+
+@layer utilities {
+	.text-balance {
+		text-wrap: balance;
+	}
+}
+
+/* Custom dark CAD background */
+.bg-gray-850 {
+	background-color: #1a1d23;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	@apply bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+	@apply bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	@apply bg-gray-600;
+}
+
+/* Three.js canvas styling */
+.cad-viewport canvas {
+	outline: none;
+}
+
+/* Monaco editor overrides */
+.monaco-editor {
+	border-radius: 0.5rem;
+}
+
+/* Resize handle styling */
+.resize-handle {
+	@apply cursor-col-resize hover:bg-forge-500/30 active:bg-forge-500/50 transition-colors;
+}

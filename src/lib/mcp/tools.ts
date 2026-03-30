@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { SPLICER_MACRO_TOOLS } from "./splicer-macro-tools";
 
 // ─── Tool Input Schemas ──────────────────────────────────────────
 
@@ -163,4 +164,10 @@ export const CAD_TOOLS: ToolDefinition[] = [
 			"Send the current model to an external CAD application (SolidWorks, Revit, FreeCAD, Fusion 360) via the MCP bridge. Auto-selects the best interchange format.",
 		inputSchema: SendToExternalSchema,
 	},
+];
+
+/** All available tools — core CAD + splicer/macro/batch */
+export const ALL_TOOLS: ToolDefinition[] = [
+	...CAD_TOOLS,
+	...SPLICER_MACRO_TOOLS,
 ];

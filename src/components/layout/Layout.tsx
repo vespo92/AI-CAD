@@ -4,19 +4,23 @@ import { ExportPanel } from "@/components/convert/ExportPanel";
 import { JobList } from "@/components/convert/JobList";
 import { CodeEditor } from "@/components/editor/CodeEditor";
 import { FeatureTree } from "@/components/feature-tree/FeatureTree";
+import { MacroPanel } from "@/components/macro/MacroPanel";
 import { PartLibrary } from "@/components/parts/PartLibrary";
+import { SplicerPanel } from "@/components/splicer/SplicerPanel";
 import { CadViewport } from "@/components/viewport/CadViewport";
 import { useCadStore } from "@/lib/store/cad-store";
 import { useConsoleStore } from "@/lib/store/console-store";
 import { cn } from "@/lib/utils/cn";
 import {
 	ArrowDownTrayIcon,
+	BoltIcon,
 	ChatBubbleLeftRightIcon,
 	ClockIcon,
 	CodeBracketIcon,
 	CommandLineIcon,
 	CubeIcon,
 	CubeTransparentIcon,
+	LinkIcon,
 	SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef } from "react";
@@ -32,6 +36,8 @@ const LEFT_TABS = [
 	{ id: "features" as const, label: "Features", icon: CubeIcon },
 	{ id: "parts" as const, label: "Parts", icon: SparklesIcon },
 	{ id: "assembly" as const, label: "Assembly", icon: CubeTransparentIcon },
+	{ id: "splicer" as const, label: "Splicer", icon: LinkIcon },
+	{ id: "macros" as const, label: "Macros", icon: BoltIcon },
 ];
 
 const RIGHT_TABS = [
@@ -91,6 +97,8 @@ export function Layout() {
 						{activeLeftTab === "assembly" && (
 							<AssemblyPanel className="h-full" />
 						)}
+						{activeLeftTab === "splicer" && <SplicerPanel className="h-full" />}
+						{activeLeftTab === "macros" && <MacroPanel className="h-full" />}
 					</div>
 				</div>
 

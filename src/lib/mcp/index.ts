@@ -3,11 +3,13 @@
  *
  * Provides:
  * - MCP Server: Expose CAD tools to AI agents
+ * - Browser Executor: Wire MCP tools to the live CAD engine
  * - MCP Bridge: Connect to external CAD apps (SolidWorks, Revit, etc.)
  * - Format Converters: STEP, STL, IFC, OBJ interchange
  */
 
-export { server } from "./server";
+export { server, executeBrowserTool, initBrowserExecutor } from "./server";
+export { BROWSER_TOOL_REGISTRY } from "./browser-executor";
 export { McpBridge, getMcpBridge } from "./bridge";
 export type { ExternalTarget, BridgeConfig } from "./bridge";
 export { CAD_TOOLS } from "./tools";

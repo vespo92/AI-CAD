@@ -2,12 +2,16 @@
  * AI-CAD MCP Server
  *
  * Exposes CAD operations as MCP tools that any AI agent can call.
- * Runs as a standalone process (stdio transport) or embedded in the
- * browser via SSE transport.
+ *
+ * Two modes:
+ *   1. Standalone (stdio): `bun run src/lib/mcp/server.ts`
+ *      Tools return JSON descriptions of what to do.
+ *   2. Browser-embedded: Import and call executeBrowserTool()
+ *      Tools actually execute against the live CAD engine + store.
  *
  * Usage:
- *   bun run apps/ai-cad/src/lib/mcp/server.ts         # stdio mode
- *   Or import and start programmatically with SSE transport
+ *   bun run src/lib/mcp/server.ts         # stdio mode
+ *   Or import executeBrowserTool() in the React app
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -21,12 +25,48 @@ import {
 
 const server = new McpServer({
 	name: "ai-cad",
-	version: "1.0.0",
+	version: "2.0.0",
 });
 
 // In-memory state for standalone server mode
 let currentCode = "";
 const engineReady = false;
+
+// Browser executor reference — set at runtime when in browser context
+let browserExecutor: typeof import("./browser-executor") | null = null;
+
+/**
+ * Initialize browser-side execution. Call this once from the React app
+ * to enable MCP tools to actually drive the CAD engine.
+ */
+export async function initBrowserExecutor(): Promise<void> {
+	browserExecutor = await import("./browser-executor");
+}
+
+/**
+ * Execute an MCP tool in the browser context.
+ * Returns the result from the actual CAD engine.
+ */
+export async function executeBrowserTool(
+	toolName: string,
+	args: Record<string, unknown>,
+): Promise<{
+	success: boolean;
+	message: string;
+	data?: Record<string, unknown>;
+}> {
+	if (!browserExecutor) {
+		await initBrowserExecutor();
+	}
+	const executor = browserExecutor!.BROWSER_TOOL_REGISTRY[toolName];
+	if (!executor) {
+		return {
+			success: false,
+			message: `Unknown tool: ${toolName}. Available: ${Object.keys(browserExecutor!.BROWSER_TOOL_REGISTRY).join(", ")}`,
+		};
+	}
+	return executor(args);
+}
 
 // ─── Tools ───────────────────────────────────────────────────────
 
@@ -38,6 +78,14 @@ server.tool(
 		autoRun: z.boolean().optional().default(true),
 	},
 	async ({ code, autoRun }) => {
+		// Browser mode: actually execute
+		if (browserExecutor) {
+			const result = await browserExecutor.executeCode(code, autoRun);
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode: store code
 		currentCode = code;
 		return {
 			content: [
@@ -70,6 +118,27 @@ server.tool(
 		z: z.number().optional().default(0).describe("Position Z offset"),
 	},
 	async (params) => {
+		// Browser mode
+		if (browserExecutor) {
+			const result = await browserExecutor.createPrimitive({
+				type: params.type,
+				dimensions: {
+					width: params.width,
+					depth: params.depth,
+					height: params.height,
+					radius: params.radius,
+				},
+				position: {
+					x: params.x ?? 0,
+					y: params.y ?? 0,
+					z: params.z ?? 0,
+				},
+			});
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode
 		const result = handleCreatePrimitive({
 			type: params.type,
 			dimensions: {
@@ -113,6 +182,26 @@ server.tool(
 			.describe("Full replacement code if auto-modification is insufficient"),
 	},
 	async (params) => {
+		// Browser mode
+		if (browserExecutor) {
+			const result = await browserExecutor.modifyShape({
+				operation: params.operation,
+				params: {
+					radius: params.radius,
+					distance: params.distance,
+					thickness: params.thickness,
+					angle: params.angle,
+					x: params.x,
+					y: params.y,
+					z: params.z,
+				},
+				code: params.code,
+			});
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode
 		const result = handleModifyShape(
 			{
 				operation: params.operation,
@@ -144,6 +233,14 @@ server.tool(
 		filename: z.string().optional(),
 	},
 	async ({ format, filename }) => {
+		// Browser mode
+		if (browserExecutor) {
+			const result = await browserExecutor.exportModel(format, filename);
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode
 		return {
 			content: [
 				{
@@ -167,6 +264,14 @@ server.tool(
 		includeCode: z.boolean().optional().default(false),
 	},
 	async ({ includeCode }) => {
+		// Browser mode
+		if (browserExecutor) {
+			const result = browserExecutor.getModelInfo(includeCode);
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode
 		const info: Record<string, unknown> = {
 			engineReady,
 			currentCode: includeCode ? currentCode : undefined,
@@ -187,8 +292,6 @@ server.tool(
 			.describe("Natural language description of the model to create"),
 	},
 	async ({ description }) => {
-		// This tool returns the description for the LLM integration layer
-		// to process. In standalone mode, it stores the intent.
 		return {
 			content: [
 				{
@@ -240,6 +343,14 @@ server.tool(
 		filename: z.string(),
 	},
 	async ({ format, data, filename }) => {
+		// Browser mode: actually import
+		if (browserExecutor && (format === "step" || format === "stl")) {
+			const result = await browserExecutor.importModel(format, data, filename);
+			return {
+				content: [{ type: "text" as const, text: JSON.stringify(result) }],
+			};
+		}
+		// Standalone mode
 		return {
 			content: [
 				{
@@ -303,7 +414,7 @@ server.prompt(
 	}),
 );
 
-// ─── Start Server ────────────────────────────────────────────────
+// ─── Reference ───────────────────────────────────────────────────
 
 const REPLICAD_API_REFERENCE = `# Replicad API Reference
 

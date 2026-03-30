@@ -1,5 +1,3 @@
-import { msalInstance } from "@/lib/auth/msal-config";
-
 export class ApiError extends Error {
 	constructor(
 		public status: number,
@@ -12,22 +10,9 @@ export class ApiError extends Error {
 }
 
 async function getAuthHeader(): Promise<Record<string, string>> {
-	const accounts = msalInstance.getAllAccounts();
-	if (accounts.length === 0) {
-		return {};
-	}
-
-	try {
-		const response = await msalInstance.acquireTokenSilent({
-			scopes: ["User.Read"],
-			account: accounts[0],
-		});
-		return {
-			Authorization: `Bearer ${response.accessToken}`,
-		};
-	} catch {
-		return {};
-	}
+	// Auth headers are added when Azure AD integration is enabled.
+	// For now, return empty headers (works for unauthenticated backends).
+	return {};
 }
 
 export async function apiFetch<T>(

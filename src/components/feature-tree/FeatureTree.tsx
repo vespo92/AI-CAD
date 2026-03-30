@@ -1,3 +1,8 @@
+import { useCadEngine } from "@/hooks/use-cad-engine";
+import {
+	createDefaultFeature,
+	generateCodeFromFeatures,
+} from "@/lib/cad-engine/feature-codegen";
 import { useCadStore } from "@/lib/store/cad-store";
 import { cn } from "@/lib/utils/cn";
 import type { Feature, FeatureType } from "@/types/cad";
@@ -6,8 +11,10 @@ import {
 	EyeIcon,
 	EyeSlashIcon,
 	PencilSquareIcon,
+	PlusIcon,
 	TrashIcon,
 } from "@heroicons/react/24/outline";
+import { useCallback, useState } from "react";
 
 const FEATURE_ICONS: Record<FeatureType, string> = {
 	sketch: "S",
@@ -41,6 +48,19 @@ const FEATURE_COLORS: Record<FeatureType, string> = {
 	pattern: "bg-amber-500/20 text-amber-400",
 };
 
+const ADD_FEATURE_MENU: { label: string; type: FeatureType }[] = [
+	{ label: "Sketch", type: "sketch" },
+	{ label: "Extrude", type: "extrude" },
+	{ label: "Revolve", type: "revolve" },
+	{ label: "Fillet", type: "fillet" },
+	{ label: "Chamfer", type: "chamfer" },
+	{ label: "Shell", type: "shell" },
+	{ label: "Boolean Cut", type: "boolean-cut" },
+	{ label: "Boolean Fuse", type: "boolean-fuse" },
+	{ label: "Mirror", type: "mirror" },
+	{ label: "Pattern", type: "pattern" },
+];
+
 interface FeatureTreeProps {
 	className?: string;
 }
@@ -51,6 +71,60 @@ export function FeatureTree({ className }: FeatureTreeProps) {
 	const selectFeature = useCadStore((s) => s.selectFeature);
 	const toggleVisibility = useCadStore((s) => s.toggleFeatureVisibility);
 	const removeFeature = useCadStore((s) => s.removeFeature);
+	const addFeature = useCadStore((s) => s.addFeature);
+	const setEditorCode = useCadStore((s) => s.setEditorCode);
+	const pushHistory = useCadStore((s) => s.pushHistory);
+	const { execute } = useCadEngine();
+	const [showAddMenu, setShowAddMenu] = useState(false);
+
+	const rebuildFromFeatures = useCallback(
+		async (features: Feature[]) => {
+			const code = generateCodeFromFeatures(features);
+			setEditorCode(code);
+			pushHistory("Feature tree update");
+			await execute(code);
+		},
+		[setEditorCode, pushHistory, execute],
+	);
+
+	const handleAddFeature = useCallback(
+		async (type: FeatureType) => {
+			const feature = createDefaultFeature(type);
+			addFeature(feature);
+			setShowAddMenu(false);
+
+			// Rebuild model from features
+			const updatedFeatures = [...useCadStore.getState().model.features];
+			await rebuildFromFeatures(updatedFeatures);
+		},
+		[addFeature, rebuildFromFeatures],
+	);
+
+	const handleDeleteFeature = useCallback(
+		async (id: string) => {
+			removeFeature(id);
+			const updatedFeatures = useCadStore
+				.getState()
+				.model.features.filter((f) => f.id !== id);
+			if (updatedFeatures.length > 0) {
+				await rebuildFromFeatures(updatedFeatures);
+			}
+		},
+		[removeFeature, rebuildFromFeatures],
+	);
+
+	const handleToggleVisibility = useCallback(
+		async (id: string) => {
+			toggleVisibility(id);
+			const updatedFeatures = useCadStore
+				.getState()
+				.model.features.map((f) =>
+					f.id === id ? { ...f, visible: !f.visible } : f,
+				);
+			await rebuildFromFeatures(updatedFeatures);
+		},
+		[toggleVisibility, rebuildFromFeatures],
+	);
 
 	return (
 		<div className={cn("flex flex-col", className)}>
@@ -62,13 +136,47 @@ export function FeatureTree({ className }: FeatureTreeProps) {
 						{model.name}
 					</span>
 				</div>
-				<button
-					type="button"
-					className="p-1 text-gray-400 hover:text-gray-200 rounded"
-					title="Rename model"
-				>
-					<PencilSquareIcon className="w-3.5 h-3.5" />
-				</button>
+				<div className="flex items-center gap-1">
+					<button
+						type="button"
+						className="p-1 text-gray-400 hover:text-gray-200 rounded"
+						title="Rename model"
+					>
+						<PencilSquareIcon className="w-3.5 h-3.5" />
+					</button>
+					<div className="relative">
+						<button
+							type="button"
+							className="p-1 text-forge-400 hover:text-forge-300 rounded"
+							title="Add feature"
+							onClick={() => setShowAddMenu(!showAddMenu)}
+						>
+							<PlusIcon className="w-3.5 h-3.5" />
+						</button>
+						{showAddMenu && (
+							<div className="absolute right-0 top-full mt-1 w-40 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 py-1">
+								{ADD_FEATURE_MENU.map((item) => (
+									<button
+										key={item.type}
+										type="button"
+										className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+										onClick={() => handleAddFeature(item.type)}
+									>
+										<span
+											className={cn(
+												"w-4 h-4 rounded text-[9px] font-mono flex items-center justify-center flex-shrink-0",
+												FEATURE_COLORS[item.type],
+											)}
+										>
+											{FEATURE_ICONS[item.type]}
+										</span>
+										{item.label}
+									</button>
+								))}
+							</div>
+						)}
+					</div>
+				</div>
 			</div>
 
 			{/* Feature list */}
@@ -77,7 +185,7 @@ export function FeatureTree({ className }: FeatureTreeProps) {
 					<div className="px-3 py-6 text-center">
 						<p className="text-sm text-gray-500">No features yet</p>
 						<p className="text-xs text-gray-600 mt-1">
-							Use the chat or code editor to create geometry
+							Click + to add a feature, or use the chat/code editor
 						</p>
 					</div>
 				) : (
@@ -88,16 +196,25 @@ export function FeatureTree({ className }: FeatureTreeProps) {
 							index={index}
 							isSelected={feature.id === selectedFeatureId}
 							onSelect={() => selectFeature(feature.id)}
-							onToggleVisibility={() => toggleVisibility(feature.id)}
-							onDelete={() => removeFeature(feature.id)}
+							onToggleVisibility={() => handleToggleVisibility(feature.id)}
+							onDelete={() => handleDeleteFeature(feature.id)}
 						/>
 					))
 				)}
 			</div>
 
 			{/* Footer stats */}
-			<div className="px-3 py-2 border-t border-gray-700 text-xs text-gray-500">
-				{model.features.length} feature{model.features.length !== 1 ? "s" : ""}
+			<div className="px-3 py-2 border-t border-gray-700 text-xs text-gray-500 flex justify-between">
+				<span>
+					{model.features.length} feature
+					{model.features.length !== 1 ? "s" : ""}
+				</span>
+				{model.features.length > 0 && (
+					<span>
+						{model.features.filter((f) => f.visible && !f.suppressed).length}{" "}
+						active
+					</span>
+				)}
 			</div>
 		</div>
 	);

@@ -5,9 +5,11 @@ Open-source, AI-driven parametric CAD platform. Describe designs in plain Englis
 ## Features
 
 - **NLP-to-CAD** — Chat with an LLM to generate parametric 3D models from natural language
-- **Parametric Modeling** — Full Replicad (OpenCASCADE) kernel: extrude, revolve, fillet, chamfer, boolean operations
+- **Feature-Based Parametric Modeling** — Add/remove/toggle features that drive Replicad code generation: extrude, revolve, fillet, chamfer, boolean, mirror, pattern
 - **Real-time 3D Viewport** — Three.js/React Three Fiber with orbit controls, wireframe, edge highlighting
 - **Code Editor** — Monaco editor for Replicad TypeScript with live execution
+- **Engine Console** — Real-time logging of WASM engine events, execution timing, and mesh statistics
+- **Runtime LLM Configuration** — Switch between OpenAI / Anthropic / Ollama providers and models from the Settings page
 - **Format Conversion** — STEP, IGES, STL, OBJ, FBX, GLTF, USD, 3MF, DXF, BREP (18+ formats)
 - **Assembly Management** — Mate definitions: coincident, concentric, distance, angle, tangent, gear
 - **Universal Parts Consciousness** — Intelligent parts library tracking part relationships, failure modes, and usage patterns ([UPC](https://github.com/vespo92/UniversalPartsConsciousness))
@@ -19,14 +21,14 @@ Open-source, AI-driven parametric CAD platform. Describe designs in plain Englis
 | Layer | Technology |
 |-------|-----------|
 | Framework | React 19, TypeScript, Vite 6 |
-| 3D Engine | Three.js, @react-three/fiber, @react-three/drei |
+| 3D Engine | Three.js, @react-three/fiber 9, @react-three/drei 10 |
 | CAD Kernel | Replicad (OpenCASCADE WASM) |
-| State | Zustand |
+| State | Zustand (with persist middleware for settings) |
 | Routing | TanStack Router (file-based) |
 | Data | TanStack React Query |
 | Editor | Monaco Editor |
-| LLM | OpenAI / Anthropic Claude / Ollama |
-| Auth | Azure AD (MSAL) — optional |
+| LLM | OpenAI / Anthropic Claude / Ollama (runtime-configurable) |
+| Auth | Azure AD (MSAL) — optional, install separately |
 | Styling | Tailwind CSS |
 
 ## Quick Start
@@ -48,28 +50,31 @@ npm run dev
 
 Open http://localhost:5176
 
-The app runs in **offline mode** by default — you can write Replicad code in the editor and see 3D models without any backend services. To enable AI chat features, configure your LLM API key in `.env`.
+The app runs in **offline mode** by default — you can write Replicad code in the editor and see 3D models without any backend services. To enable AI chat features, either:
+- Set `VITE_LLM_API_KEY` in `.env`, or
+- Configure your LLM provider at runtime via **Settings** (gear icon in toolbar)
 
 ## Architecture
 
 ```
 src/
   components/
-    viewport/     # 3D rendering (Three.js canvas)
-    chat/         # LLM chat interface
-    editor/       # Monaco code editor
-    parts/        # Parts library browser
-    assembly/     # Assembly management
-    convert/      # Format conversion
-    sketch/       # 2D sketch editor
+    viewport/       # 3D rendering (Three.js canvas)
+    chat/           # LLM chat interface
+    editor/         # Monaco code editor
+    feature-tree/   # Parametric feature tree (drives code generation)
+    parts/          # Parts library browser
+    assembly/       # Assembly management
+    convert/        # Format conversion
+    sketch/         # 2D sketch editor
   lib/
-    cad-engine/   # Web Worker CAD execution
-    api/          # HTTP clients (LLM, CAD service, UPC)
-    mcp/          # Model Context Protocol server
-    store/        # Zustand state management
-    auth/         # Azure AD (optional)
-  routes/         # TanStack file-based routes
-  types/          # TypeScript type definitions
+    cad-engine/     # Web Worker CAD execution + feature codegen
+    api/            # HTTP clients (LLM, CAD service, UPC)
+    mcp/            # Model Context Protocol server
+    store/          # Zustand state management (cad, console, llm)
+    auth/           # Azure AD (optional stub)
+  routes/           # TanStack file-based routes
+  types/            # TypeScript type definitions
 ```
 
 ## CAD Engine
@@ -78,11 +83,19 @@ The CAD kernel runs in a Web Worker using Replicad (a TypeScript wrapper around 
 
 ```typescript
 // Example: Create a box with a fillet
-const { draw, makeSolid } = replicad;
-const box = makeSolid.box(10, 10, 5);
-const filleted = box.fillet(1, (e) => e.inDirection("Z"));
-return { shape: filleted, name: "Filleted Box" };
+const shape = drawRoundedRectangle(40, 30, 5)
+  .sketchOnPlane("XY")
+  .extrude(15)
+  .fillet(2, (e) => e.inDirection("Z"));
+
+return shape;
 ```
+
+## Feature-Based Modeling
+
+Click the **+** button in the Feature Tree panel to add parametric features. Each feature maps to generated Replicad code. Toggling visibility or deleting features automatically regenerates and re-executes the model.
+
+Supported features: Sketch, Extrude, Revolve, Fillet, Chamfer, Shell, Boolean Cut/Fuse, Mirror, Pattern.
 
 ## MCP Server
 
@@ -93,7 +106,7 @@ AI-CAD exposes its capabilities as an MCP server, allowing any AI agent to creat
 npm run mcp:server
 ```
 
-Available tools: `execute_code`, `create_primitive`, `modify_shape`, `export_model`, `import_model`, `describe_model`, `send_to_external_cad`
+Available tools: `execute_code`, `create_primitive`, `modify_shape`, `export_model`, `import_model`, `describe_model`, `send_to_external`
 
 ## Docker
 

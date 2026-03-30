@@ -7,6 +7,7 @@ import { FeatureTree } from "@/components/feature-tree/FeatureTree";
 import { PartLibrary } from "@/components/parts/PartLibrary";
 import { CadViewport } from "@/components/viewport/CadViewport";
 import { useCadStore } from "@/lib/store/cad-store";
+import { useConsoleStore } from "@/lib/store/console-store";
 import { cn } from "@/lib/utils/cn";
 import {
 	ArrowDownTrayIcon,
@@ -18,6 +19,7 @@ import {
 	CubeTransparentIcon,
 	SparklesIcon,
 } from "@heroicons/react/24/outline";
+import { useEffect, useRef } from "react";
 import { Toolbar } from "./Toolbar";
 
 const BOTTOM_TABS = [
@@ -176,12 +178,94 @@ export function Layout() {
 }
 
 function ConsolePanel() {
+	const entries = useConsoleStore((s) => s.entries);
+	const filter = useConsoleStore((s) => s.filter);
+	const setFilter = useConsoleStore((s) => s.setFilter);
+	const clearConsole = useConsoleStore((s) => s.clear);
+	const endRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		endRef.current?.scrollIntoView({ behavior: "smooth" });
+	}, [entries.length]);
+
+	const filtered =
+		filter === "all" ? entries : entries.filter((e) => e.level === filter);
+
+	const levelColors: Record<string, string> = {
+		info: "text-blue-400",
+		warn: "text-yellow-400",
+		error: "text-red-400",
+		debug: "text-gray-500",
+	};
+
+	const sourceColors: Record<string, string> = {
+		engine: "text-green-500",
+		worker: "text-purple-400",
+		chat: "text-forge-400",
+		mcp: "text-cyan-400",
+		system: "text-gray-500",
+	};
+
 	return (
-		<div className="h-full p-3 font-mono text-xs text-gray-500 overflow-y-auto">
-			<p>AI-CAD Engine Console</p>
-			<p className="text-gray-600">
-				Waiting for opencascade.js WASM initialization...
-			</p>
+		<div className="h-full flex flex-col">
+			<div className="flex items-center gap-2 px-3 py-1 border-b border-gray-700 text-[10px]">
+				{(["all", "info", "warn", "error", "debug"] as const).map((f) => (
+					<button
+						key={f}
+						type="button"
+						onClick={() => setFilter(f)}
+						className={cn(
+							"px-1.5 py-0.5 rounded",
+							filter === f
+								? "bg-gray-700 text-white"
+								: "text-gray-500 hover:text-gray-300",
+						)}
+					>
+						{f}
+					</button>
+				))}
+				<div className="flex-1" />
+				<span className="text-gray-600">{filtered.length} entries</span>
+				<button
+					type="button"
+					onClick={clearConsole}
+					className="text-gray-500 hover:text-gray-300"
+				>
+					Clear
+				</button>
+			</div>
+			<div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] space-y-0.5">
+				{filtered.length === 0 && (
+					<p className="text-gray-600 italic">No log entries</p>
+				)}
+				{filtered.map((entry) => (
+					<div key={entry.id} className="flex gap-2 leading-tight">
+						<span className="text-gray-600 flex-shrink-0">
+							{new Date(entry.timestamp).toLocaleTimeString()}
+						</span>
+						<span
+							className={cn(
+								"flex-shrink-0 uppercase w-10",
+								levelColors[entry.level],
+							)}
+						>
+							{entry.level}
+						</span>
+						{entry.source && (
+							<span
+								className={cn(
+									"flex-shrink-0 w-14",
+									sourceColors[entry.source] || "text-gray-500",
+								)}
+							>
+								[{entry.source}]
+							</span>
+						)}
+						<span className="text-gray-300 break-all">{entry.message}</span>
+					</div>
+				))}
+				<div ref={endRef} />
+			</div>
 		</div>
 	);
 }

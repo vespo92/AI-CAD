@@ -1,6 +1,4 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { msalInstance } from "@/lib/auth/msal-config";
-import { MsalProvider } from "@azure/msal-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
@@ -41,12 +39,10 @@ if (!rootElement.innerHTML) {
 	root.render(
 		<StrictMode>
 			<ErrorBoundary>
-				<MsalProvider instance={msalInstance}>
-					<QueryClientProvider client={queryClient}>
-						<RouterProvider router={router} />
-						<ReactQueryDevtools initialIsOpen={false} />
-					</QueryClientProvider>
-				</MsalProvider>
+				<QueryClientProvider client={queryClient}>
+					<RouterProvider router={router} />
+					<ReactQueryDevtools initialIsOpen={false} />
+				</QueryClientProvider>
 			</ErrorBoundary>
 		</StrictMode>,
 	);

@@ -2,8 +2,10 @@
  * LLM API Client — Provider-agnostic interface for chat completions.
  *
  * Supports OpenAI-compatible APIs (OpenAI, Azure OpenAI, Ollama, LM Studio, etc.)
- * and Anthropic's Messages API. Configurable via environment variables.
+ * and Anthropic's Messages API. Configurable via settings UI or environment variables.
  */
+
+import { useLlmStore } from "@/lib/store/llm-store";
 
 export interface LlmMessage {
 	role: "system" | "user" | "assistant";
@@ -27,13 +29,21 @@ export interface LlmConfig {
 }
 
 function getConfig(): LlmConfig {
-	const provider =
-		(import.meta.env.VITE_LLM_PROVIDER as LlmProvider) || "openai";
-	const apiKey = import.meta.env.VITE_LLM_API_KEY || "";
+	const store = useLlmStore.getState();
+
+	const provider = store.provider || "openai";
+	const apiKey =
+		store.apiKey ||
+		import.meta.env.VITE_LLM_API_KEY ||
+		import.meta.env.VITE_OPENAI_API_KEY ||
+		import.meta.env.VITE_ANTHROPIC_API_KEY ||
+		"";
 	const model =
+		store.model ||
 		import.meta.env.VITE_LLM_MODEL ||
 		(provider === "anthropic" ? "claude-sonnet-4-20250514" : "gpt-4o");
 	const baseUrl =
+		store.baseUrl ||
 		import.meta.env.VITE_LLM_BASE_URL ||
 		(provider === "anthropic"
 			? "https://api.anthropic.com"
@@ -44,8 +54,8 @@ function getConfig(): LlmConfig {
 		apiKey,
 		baseUrl,
 		model,
-		maxTokens: Number(import.meta.env.VITE_LLM_MAX_TOKENS) || 4096,
-		temperature: Number(import.meta.env.VITE_LLM_TEMPERATURE) || 0.3,
+		maxTokens: store.maxTokens || 4096,
+		temperature: store.temperature ?? 0.3,
 	};
 }
 
@@ -60,7 +70,7 @@ export async function* streamChat(
 
 	if (!config.apiKey) {
 		throw new Error(
-			"LLM API key not configured. Set VITE_LLM_API_KEY in your environment.",
+			"LLM API key not configured. Set it in Settings or via VITE_LLM_API_KEY environment variable.",
 		);
 	}
 

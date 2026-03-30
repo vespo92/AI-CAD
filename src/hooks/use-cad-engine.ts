@@ -1,6 +1,7 @@
 import { getCadEngine } from "@/lib/cad-engine/engine";
 import type { MeshPayload } from "@/lib/cad-engine/types";
 import { useCadStore } from "@/lib/store/cad-store";
+import { useConsoleStore } from "@/lib/store/console-store";
 import { useCallback, useEffect, useRef } from "react";
 
 export function useCadEngine() {
@@ -8,6 +9,7 @@ export function useCadEngine() {
 	const setMeshData = useCadStore((s) => s.setMeshData);
 	const setProcessing = useCadStore((s) => s.setProcessing);
 	const addChatMessage = useCadStore((s) => s.addChatMessage);
+	const consoleLog = useConsoleStore((s) => s.log);
 	const initialized = useRef(false);
 
 	useEffect(() => {
@@ -18,16 +20,27 @@ export function useCadEngine() {
 
 		engine.setOnMeshUpdate((mesh: MeshPayload) => {
 			setMeshData(mesh);
+			const vertCount = mesh.faces.vertices.length / 3;
+			const triCount = mesh.faces.triangles.length / 3;
+			consoleLog(
+				`Mesh updated: ${vertCount} vertices, ${triCount} triangles`,
+				"info",
+				"engine",
+			);
 		});
 
-		engine.setOnProgress((stage, _percent) => {
+		engine.setOnProgress((stage, percent) => {
 			addChatMessage({ role: "system", content: stage });
+			consoleLog(`[${percent}%] ${stage}`, "info", "engine");
 		});
 
 		engine.setOnError((error) => {
 			setProcessing(false);
 			addChatMessage({ role: "system", content: `Error: ${error}` });
+			consoleLog(error, "error", "engine");
 		});
+
+		consoleLog("Initializing OpenCascade WASM engine...", "info", "system");
 
 		engine
 			.init()
@@ -38,6 +51,11 @@ export function useCadEngine() {
 					content:
 						"OpenCascade engine ready. Write Replicad code and click Run, or describe what you want to build.",
 				});
+				consoleLog(
+					"OpenCascade engine initialized successfully",
+					"info",
+					"system",
+				);
 			})
 			.catch((err) => {
 				console.error("Engine init failed:", err);
@@ -45,8 +63,13 @@ export function useCadEngine() {
 					role: "system",
 					content: `Engine initialization failed: ${err instanceof Error ? err.message : "unknown error"}`,
 				});
+				consoleLog(
+					`Engine init failed: ${err instanceof Error ? err.message : "unknown"}`,
+					"error",
+					"system",
+				);
 			});
-	}, [setEngineReady, setMeshData, setProcessing, addChatMessage]);
+	}, [setEngineReady, setMeshData, setProcessing, addChatMessage, consoleLog]);
 
 	const execute = useCallback(
 		async (code: string) => {
@@ -54,6 +77,7 @@ export function useCadEngine() {
 			if (!engine.isReady) return;
 
 			setProcessing(true);
+			consoleLog("Executing code...", "info", "engine");
 			const start = performance.now();
 
 			try {
@@ -63,16 +87,19 @@ export function useCadEngine() {
 					role: "system",
 					content: `Model generated in ${elapsed}ms.`,
 				});
+				consoleLog(`Execution completed in ${elapsed}ms`, "info", "engine");
 			} catch (err) {
+				const msg = err instanceof Error ? err.message : "unknown";
 				addChatMessage({
 					role: "system",
-					content: `Execution error: ${err instanceof Error ? err.message : "unknown"}`,
+					content: `Execution error: ${msg}`,
 				});
+				consoleLog(`Execution error: ${msg}`, "error", "engine");
 			} finally {
 				setProcessing(false);
 			}
 		},
-		[setProcessing, addChatMessage],
+		[setProcessing, addChatMessage, consoleLog],
 	);
 
 	const exportModel = useCallback(
@@ -82,6 +109,11 @@ export function useCadEngine() {
 
 			const ext = format === "step" ? ".step" : ".stl";
 			const filename = `${useCadStore.getState().model.name}${ext}`;
+			consoleLog(
+				`Exporting ${format.toUpperCase()}: ${filename}`,
+				"info",
+				"engine",
+			);
 
 			try {
 				await engine.exportModel(format, filename);
@@ -89,14 +121,17 @@ export function useCadEngine() {
 					role: "system",
 					content: `Exported ${format.toUpperCase()} file: ${filename}`,
 				});
+				consoleLog(`Export complete: ${filename}`, "info", "engine");
 			} catch (err) {
+				const msg = err instanceof Error ? err.message : "unknown";
 				addChatMessage({
 					role: "system",
-					content: `Export error: ${err instanceof Error ? err.message : "unknown"}`,
+					content: `Export error: ${msg}`,
 				});
+				consoleLog(`Export error: ${msg}`, "error", "engine");
 			}
 		},
-		[addChatMessage],
+		[addChatMessage, consoleLog],
 	);
 
 	const importModel = useCallback(
@@ -110,10 +145,16 @@ export function useCadEngine() {
 					role: "system",
 					content: `Unsupported import format: .${ext}. Supported: .step, .stp, .stl`,
 				});
+				consoleLog(`Unsupported import format: .${ext}`, "warn", "engine");
 				return;
 			}
 
 			setProcessing(true);
+			consoleLog(
+				`Importing ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+				"info",
+				"engine",
+			);
 			const start = performance.now();
 
 			try {
@@ -125,16 +166,23 @@ export function useCadEngine() {
 					role: "system",
 					content: `Imported ${file.name} in ${elapsed}ms.`,
 				});
+				consoleLog(
+					`Import complete: ${file.name} in ${elapsed}ms`,
+					"info",
+					"engine",
+				);
 			} catch (err) {
+				const msg = err instanceof Error ? err.message : "unknown";
 				addChatMessage({
 					role: "system",
-					content: `Import error: ${err instanceof Error ? err.message : "unknown"}`,
+					content: `Import error: ${msg}`,
 				});
+				consoleLog(`Import error: ${msg}`, "error", "engine");
 			} finally {
 				setProcessing(false);
 			}
 		},
-		[setProcessing, addChatMessage],
+		[setProcessing, addChatMessage, consoleLog],
 	);
 
 	return { execute, exportModel, importModel };

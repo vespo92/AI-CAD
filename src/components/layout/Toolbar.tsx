@@ -13,6 +13,7 @@ import {
 	DocumentPlusIcon,
 	RectangleGroupIcon,
 } from "@heroicons/react/24/outline";
+import { Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
 interface ToolbarProps {
@@ -143,7 +144,14 @@ export function Toolbar({ onToggleRightPanel }: ToolbarProps) {
 			/>
 
 			{/* Settings */}
-			<ToolbarButton icon={Cog6ToothIcon} label="Settings" />
+			<Link
+				to="/settings"
+				className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 rounded transition-colors hover:text-gray-200 hover:bg-gray-800"
+				title="Settings"
+			>
+				<Cog6ToothIcon className="w-4 h-4" />
+				<span className="hidden sm:inline">Settings</span>
+			</Link>
 
 			{/* User */}
 			{user && (

@@ -31,6 +31,7 @@ interface CadState {
 	activeLeftTab: "features" | "parts" | "assembly" | "splicer" | "macros";
 	activeRightTab: "export" | "jobs";
 	rightPanelOpen: boolean;
+	viewMode: "3d" | "sketch";
 
 	// History state
 	canUndo: boolean;
@@ -66,6 +67,7 @@ interface CadState {
 	) => void;
 	setActiveRightTab: (tab: "export" | "jobs") => void;
 	toggleRightPanel: () => void;
+	setViewMode: (mode: "3d" | "sketch") => void;
 
 	addChatMessage: (message: Omit<ChatMessage, "id" | "timestamp">) => void;
 	setChatLoading: (loading: boolean) => void;
@@ -118,6 +120,7 @@ export const useCadStore = create<CadState>((set, get) => ({
 	activeLeftTab: "features",
 	activeRightTab: "export",
 	rightPanelOpen: false,
+	viewMode: "3d",
 
 	canUndo: false,
 	canRedo: false,
@@ -212,6 +215,7 @@ return shape;
 	setActiveRightTab: (activeRightTab) => set({ activeRightTab }),
 	toggleRightPanel: () =>
 		set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
+	setViewMode: (viewMode) => set({ viewMode }),
 
 	// Chat actions
 	addChatMessage: (message) =>

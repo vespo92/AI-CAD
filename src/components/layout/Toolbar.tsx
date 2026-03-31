@@ -11,6 +11,7 @@ import {
 	Cog6ToothIcon,
 	CubeIcon,
 	DocumentPlusIcon,
+	PencilSquareIcon,
 	RectangleGroupIcon,
 } from "@heroicons/react/24/outline";
 import { Link } from "@tanstack/react-router";
@@ -28,6 +29,8 @@ export function Toolbar({ onToggleRightPanel }: ToolbarProps) {
 	const canRedo = useCadStore((s) => s.canRedo);
 	const undo = useCadStore((s) => s.undo);
 	const redo = useCadStore((s) => s.redo);
+	const viewMode = useCadStore((s) => s.viewMode);
+	const setViewMode = useCadStore((s) => s.setViewMode);
 	const [showExport, setShowExport] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +83,40 @@ export function Toolbar({ onToggleRightPanel }: ToolbarProps) {
 				disabled={!canRedo}
 				onClick={redo}
 			/>
+
+			<div className="w-px h-5 bg-gray-700" />
+
+			{/* View mode toggle: 3D / 2D Sketch */}
+			<div className="flex items-center bg-gray-800 rounded overflow-hidden">
+				<button
+					type="button"
+					onClick={() => setViewMode("3d")}
+					className={cn(
+						"flex items-center gap-1 px-2 py-1 text-xs transition-colors",
+						viewMode === "3d"
+							? "bg-forge-600/40 text-forge-400"
+							: "text-gray-400 hover:text-gray-200",
+					)}
+					title="3D Viewport"
+				>
+					<CubeIcon className="w-3.5 h-3.5" />
+					<span className="hidden sm:inline">3D</span>
+				</button>
+				<button
+					type="button"
+					onClick={() => setViewMode("sketch")}
+					className={cn(
+						"flex items-center gap-1 px-2 py-1 text-xs transition-colors",
+						viewMode === "sketch"
+							? "bg-forge-600/40 text-forge-400"
+							: "text-gray-400 hover:text-gray-200",
+					)}
+					title="2D Sketch"
+				>
+					<PencilSquareIcon className="w-3.5 h-3.5" />
+					<span className="hidden sm:inline">2D</span>
+				</button>
+			</div>
 
 			<div className="w-px h-5 bg-gray-700" />
 

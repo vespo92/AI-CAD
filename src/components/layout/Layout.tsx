@@ -7,6 +7,7 @@ import { FeatureTree } from "@/components/feature-tree/FeatureTree";
 import { MacroPanel } from "@/components/macro/MacroPanel";
 import { PartLibrary } from "@/components/parts/PartLibrary";
 import { SplicerPanel } from "@/components/splicer/SplicerPanel";
+import { SketchCanvas } from "@/components/sketch/SketchCanvas";
 import { CadViewport } from "@/components/viewport/CadViewport";
 import { useCadStore } from "@/lib/store/cad-store";
 import { useConsoleStore } from "@/lib/store/console-store";
@@ -57,6 +58,7 @@ export function Layout() {
 	const setActiveRightTab = useCadStore((s) => s.setActiveRightTab);
 	const rightPanelOpen = useCadStore((s) => s.rightPanelOpen);
 	const toggleRightPanel = useCadStore((s) => s.toggleRightPanel);
+	const viewMode = useCadStore((s) => s.viewMode);
 
 	return (
 		<div className="flex flex-col h-full bg-gray-900">
@@ -104,8 +106,12 @@ export function Layout() {
 
 				{/* Center — Viewport + Bottom panel */}
 				<div className="flex-1 flex flex-col min-w-0">
-					{/* 3D Viewport */}
-					<CadViewport className="flex-1 min-h-0" />
+					{/* Viewport: 3D or 2D Sketch */}
+					{viewMode === "sketch" ? (
+						<SketchCanvas className="flex-1 min-h-0" />
+					) : (
+						<CadViewport className="flex-1 min-h-0" />
+					)}
 
 					{/* Bottom panel */}
 					<div

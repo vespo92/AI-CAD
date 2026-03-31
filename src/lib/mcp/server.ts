@@ -369,6 +369,288 @@ server.tool(
 	},
 );
 
+// ─── Splicer, Macro & Batch Tools ───────────────────────────────
+
+server.tool(
+	"create_splicer",
+	"Create a splicer definition for a part with named connection points for automatic alignment.",
+	{
+		partName: z.string(),
+		code: z.string().describe("Replicad code for the part"),
+		connections: z.array(
+			z.object({
+				name: z.string(),
+				position: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+				normal: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+				gender: z.enum(["male", "female", "neutral"]).default("neutral"),
+				diameter: z.number().default(10),
+				compatTags: z.array(z.string()).default([]),
+			}),
+		),
+		parameters: z.record(z.string(), z.number()).optional(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"create_splicer",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"splice_parts",
+	"Connect two parts at their connection points with automatic alignment.",
+	{
+		sourceSplicerId: z.string(),
+		sourceConnectionId: z.string(),
+		targetSplicerId: z.string(),
+		targetConnectionId: z.string(),
+		jointType: z
+			.enum([
+				"butt",
+				"insert",
+				"weld",
+				"fastener",
+				"press-fit",
+				"snap",
+				"threaded",
+			])
+			.default("butt"),
+		fuse: z.boolean().default(true),
+		offset: z.number().default(0),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"splice_parts",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"find_compatible_connections",
+	"Find compatible connection point pairs between two splicer definitions.",
+	{
+		sourceSplicerId: z.string(),
+		targetSplicerId: z.string(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"find_compatible_connections",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"extrude_with_connections",
+	"Create an extrusion from a 2D sketch with auto-generated connection points at both ends.",
+	{
+		name: z.string(),
+		sketchCode: z.string(),
+		extrusionType: z
+			.enum(["linear", "tapered", "twisted", "along-path"])
+			.default("linear"),
+		height: z.number().default(20),
+		taperAngle: z.number().optional(),
+		twistAngle: z.number().optional(),
+		pathCode: z.string().optional(),
+		connectionDiameter: z.number().default(10),
+		compatTags: z.array(z.string()).default([]),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"extrude_with_connections",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"run_macro",
+	"Execute a parametric macro with given parameter values.",
+	{
+		macroId: z.string(),
+		parameters: z.record(z.string(), z.unknown()).optional(),
+		autoRun: z.boolean().default(true),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"run_macro",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"create_macro",
+	"Create a new parametric macro from a code template with ${paramName} interpolations.",
+	{
+		name: z.string(),
+		description: z.string(),
+		category: z.string().default("Custom"),
+		parameters: z.array(
+			z.object({
+				name: z.string(),
+				label: z.string(),
+				type: z
+					.enum(["number", "string", "boolean", "select", "point3d"])
+					.default("number"),
+				defaultValue: z.unknown(),
+				min: z.number().optional(),
+				max: z.number().optional(),
+				unit: z.string().optional(),
+			}),
+		),
+		code: z.string(),
+		tags: z.array(z.string()).default([]),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"create_macro",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"list_macros",
+	"List available macros (built-in + user-created). Optionally filter by category or search.",
+	{
+		category: z.string().optional(),
+		search: z.string().optional(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"list_macros",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"create_batch_job",
+	"Create a mass part creation batch job with parameter sweeps. Cross-product of sweeps generates one part per combination.",
+	{
+		macroId: z.string(),
+		sweeps: z.array(
+			z.object({
+				paramName: z.string(),
+				sweepType: z
+					.enum(["linear", "logarithmic", "list", "random"])
+					.default("linear"),
+				start: z.number().optional(),
+				end: z.number().optional(),
+				count: z.number().optional(),
+				values: z.array(z.unknown()).optional(),
+				min: z.number().optional(),
+				max: z.number().optional(),
+			}),
+		),
+		namingTemplate: z.string().default("Part-${index}"),
+		concurrency: z.number().default(1),
+		autoExport: z.boolean().default(false),
+		exportFormat: z.enum(["step", "stl"]).optional(),
+		storeParts: z.boolean().default(true),
+		storeCategory: z.string().optional(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"create_batch_job",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"run_batch_job",
+	"Execute a batch job, generating code for each parameter combination and storing results.",
+	{
+		batchId: z.string(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"run_batch_job",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"get_batch_status",
+	"Get the current status and progress of a batch job.",
+	{
+		batchId: z.string(),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"get_batch_status",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"list_parts",
+	"List parts stored in the IndexedDB database. Supports category filter and text search.",
+	{
+		category: z.string().optional(),
+		search: z.string().optional(),
+		limit: z.number().default(50),
+	},
+	async (params) => {
+		const result = await executeBrowserTool(
+			"list_parts",
+			params as unknown as Record<string, unknown>,
+		);
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
+server.tool(
+	"get_db_stats",
+	"Get database statistics — part count, macro count, batch jobs, splicers, etc.",
+	{},
+	async () => {
+		const result = await executeBrowserTool("get_db_stats", {});
+		return {
+			content: [{ type: "text" as const, text: JSON.stringify(result) }],
+		};
+	},
+);
+
 // ─── Resources ───────────────────────────────────────────────────
 
 server.resource("current-code", "ai-cad://current-code", async (uri) => ({

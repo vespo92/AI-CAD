@@ -12,6 +12,7 @@
 import { getCadEngine } from "@/lib/cad-engine/engine";
 import { useCadStore } from "@/lib/store/cad-store";
 import { useConsoleStore } from "@/lib/store/console-store";
+import { SPLICER_MACRO_TOOL_REGISTRY } from "./splicer-macro-executor";
 import {
 	handleCreatePrimitive,
 	handleGetModelInfo,
@@ -276,4 +277,7 @@ export const BROWSER_TOOL_REGISTRY: Record<
 
 	get_model_info: async (args) =>
 		getModelInfo((args.includeCode as boolean) ?? false),
+
+	// Splicer, Macro, and Batch tools
+	...SPLICER_MACRO_TOOL_REGISTRY,
 };

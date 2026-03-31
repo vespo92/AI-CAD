@@ -28,7 +28,7 @@ interface CadState {
 	rightPanelWidth: number;
 	bottomPanelHeight: number;
 	activeBottomTab: "chat" | "code" | "console";
-	activeLeftTab: "features" | "parts" | "assembly";
+	activeLeftTab: "features" | "parts" | "assembly" | "splicer" | "macros";
 	activeRightTab: "export" | "jobs";
 	rightPanelOpen: boolean;
 
@@ -61,7 +61,9 @@ interface CadState {
 	setRightPanelWidth: (width: number) => void;
 	setBottomPanelHeight: (height: number) => void;
 	setActiveBottomTab: (tab: "chat" | "code" | "console") => void;
-	setActiveLeftTab: (tab: "features" | "parts" | "assembly") => void;
+	setActiveLeftTab: (
+		tab: "features" | "parts" | "assembly" | "splicer" | "macros",
+	) => void;
 	setActiveRightTab: (tab: "export" | "jobs") => void;
 	toggleRightPanel: () => void;
 

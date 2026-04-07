@@ -140,10 +140,10 @@ export function useCadEngine() {
 			if (!engine.isReady) return;
 
 			const ext = file.name.split(".").pop()?.toLowerCase();
-			if (ext !== "step" && ext !== "stp" && ext !== "stl") {
+			if (ext !== "step" && ext !== "stp" && ext !== "stl" && ext !== "dxf") {
 				addChatMessage({
 					role: "system",
-					content: `Unsupported import format: .${ext}. Supported: .step, .stp, .stl`,
+					content: `Unsupported import format: .${ext}. Supported: .step, .stp, .stl, .dxf`,
 				});
 				consoleLog(`Unsupported import format: .${ext}`, "warn", "engine");
 				return;
@@ -159,7 +159,7 @@ export function useCadEngine() {
 
 			try {
 				const data = await file.arrayBuffer();
-				const format = ext === "stl" ? "stl" : "step";
+				const format = ext === "stl" ? "stl" : ext === "dxf" ? "dxf" : "step";
 				await engine.importModel(format, data, file.name);
 				const elapsed = Math.round(performance.now() - start);
 				addChatMessage({

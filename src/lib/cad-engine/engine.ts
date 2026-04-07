@@ -1,4 +1,6 @@
+import { reconstructFrom2D } from "@/lib/layer-identification";
 import type {
+	DxfAnalysisResult,
 	ErrorPayload,
 	ExportResultPayload,
 	MeshPayload,
@@ -168,16 +170,65 @@ export class CadEngine {
 	}
 
 	async importModel(
-		format: "step" | "stl",
+		format: "step" | "stl" | "dxf",
 		data: ArrayBuffer,
 		filename: string,
 	): Promise<MeshPayload | null> {
+		// DXF files are handled on the main thread via layer identification
+		if (format === "dxf") {
+			const dxfContent = new TextDecoder().decode(data);
+			const analysis = this.analyzeDxf(dxfContent);
+
+			if (analysis.generatedCode) {
+				// Execute the generated code in the CAD worker to produce a mesh
+				return this.execute(analysis.generatedCode);
+			}
+
+			this.onError?.("DXF analysis found no extrudable profiles");
+			return null;
+		}
+
 		const result = await this.sendRequest(
 			"import",
 			{ format, data, filename },
 			[data],
 		);
 		return result as MeshPayload | null;
+	}
+
+	/**
+	 * Analyze a DXF file: classify layers, extract profiles, propose 3D features.
+	 * Runs on the main thread (not in the WASM worker) since it's pure TS logic.
+	 */
+	analyzeDxf(dxfContent: string): DxfAnalysisResult {
+		const result = reconstructFrom2D(dxfContent);
+
+		// Combine all proposed feature code into a single executable script
+		let generatedCode: string | null = null;
+		if (result.proposedFeatures.length > 0) {
+			const mainFeature = result.proposedFeatures[0];
+			generatedCode = mainFeature.codePreview;
+
+			// If there are cuts, append them
+			const cuts = result.proposedFeatures.filter((f) => f.type === "cut");
+			if (cuts.length > 0 && generatedCode) {
+				// Replace the final "return shape;" with cut operations
+				generatedCode = generatedCode.replace(/return shape;/, "");
+				for (const cut of cuts) {
+					generatedCode += `\n${cut.codePreview}`;
+				}
+				generatedCode += "\nreturn shape;";
+			}
+		}
+
+		return {
+			layerCount: result.layers.length,
+			profileCount: result.profiles.length,
+			proposedFeatureCount: result.proposedFeatures.length,
+			warnings: result.warnings,
+			reconstructionData: JSON.stringify(result),
+			generatedCode,
+		};
 	}
 
 	setOnMeshUpdate(handler: (mesh: MeshPayload) => void) {

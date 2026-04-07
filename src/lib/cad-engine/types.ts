@@ -34,9 +34,25 @@ export interface ExportPayload {
 }
 
 export interface ImportPayload {
-	format: "step" | "stl";
+	format: "step" | "stl" | "dxf";
 	data: ArrayBuffer;
 	filename: string;
+}
+
+/** Result from DXF layer analysis (sent from main thread, not worker) */
+export interface DxfAnalysisRequest {
+	dxfContent: string;
+}
+
+export interface DxfAnalysisResult {
+	layerCount: number;
+	profileCount: number;
+	proposedFeatureCount: number;
+	warnings: string[];
+	/** Serialized ReconstructionResult */
+	reconstructionData: string;
+	/** Generated replicad code for the first proposed feature */
+	generatedCode: string | null;
 }
 
 export interface FaceMesh {

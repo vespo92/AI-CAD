@@ -4,18 +4,41 @@
  * Produces:
  *   dist/ai-cad.js      — ES module library bundle
  *   dist/cad-worker.js   — standalone Web Worker (copy to consumer's public/)
- *   dist/index.d.ts      — rolled-up type declarations
+ *   dist/ai-cad.d.ts     — rolled-up type declarations
  *
  * Usage:  vite build --config vite.config.lib.ts
  */
 
 import react from "@vitejs/plugin-react";
 import path from "path";
+import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
+/**
+ * Replaces the Vite-specific `new URL("./worker.ts", import.meta.url)` pattern
+ * with a no-op so the worker isn't inlined as a base64 data URL.
+ * Consumers must call `configureWorkerUrl("/cad-worker.js")` before init.
+ */
+function stripWorkerInline(): Plugin {
+	return {
+		name: "strip-worker-inline",
+		enforce: "pre",
+		transform(code, id) {
+			if (!id.includes("cad-engine/engine")) return;
+			// Replace the new URL(...) fallback with undefined so _workerUrl
+			// (set via configureWorkerUrl) is the only path in library mode.
+			return code.replace(
+				/new URL\(["']\.\/worker\.ts["'],\s*import\.meta\.url\)/,
+				'new URL("./cad-worker.js", import.meta.url)',
+			);
+		},
+	};
+}
+
 export default defineConfig({
 	plugins: [
+		stripWorkerInline(),
 		react({ jsxRuntime: "automatic" }),
 		dts({
 			include: [
@@ -48,7 +71,6 @@ export default defineConfig({
 		},
 		outDir: "dist",
 		sourcemap: true,
-		// Don't clear dist/ — allows running alongside SPA build if needed
 		emptyOutDir: true,
 		rollupOptions: {
 			external: [

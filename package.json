@@ -1,6 +1,6 @@
 {
   "name": "ai-cad",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Open-source AI-driven parametric CAD platform with NLP input and STEP export",
   "type": "module",
   "license": "MIT",

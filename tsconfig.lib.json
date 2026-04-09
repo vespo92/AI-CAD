@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Declaration emit */
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "dist",
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Paths */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src/index.ts",
+    "src/lib/cad-engine/**/*.ts",
+    "src/hooks/**/*.ts",
+    "src/components/viewport/**/*.tsx",
+    "src/lib/store/**/*.ts",
+    "src/lib/utils/**/*.ts",
+    "src/types/**/*.ts",
+    "src/lib/layer-identification/**/*.ts"
+  ]
+}

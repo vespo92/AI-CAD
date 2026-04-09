@@ -9,6 +9,19 @@ import type {
 
 type MessageHandler = (response: WorkerResponse) => void;
 
+/**
+ * Override the default worker URL for cross-bundler compatibility.
+ * Call this before CadEngine.init() when consuming ai-cad as a library.
+ *
+ * Example (Next.js): copy dist/cad-worker.js to public/ then:
+ *   configureWorkerUrl('/cad-worker.js')
+ */
+let _workerUrl: string | URL | undefined;
+
+export function configureWorkerUrl(url: string | URL) {
+	_workerUrl = url;
+}
+
 export class CadEngine {
 	private worker: Worker | null = null;
 	private pendingRequests = new Map<
@@ -30,7 +43,9 @@ export class CadEngine {
 	async init(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
+				const workerSrc =
+					_workerUrl ?? new URL("./worker.ts", import.meta.url);
+				this.worker = new Worker(workerSrc, {
 					type: "module",
 				});
 

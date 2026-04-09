@@ -58,11 +58,11 @@ export async function executeBrowserTool(
 	if (!browserExecutor) {
 		await initBrowserExecutor();
 	}
-	const executor = browserExecutor!.BROWSER_TOOL_REGISTRY[toolName];
+	const executor = browserExecutor?.BROWSER_TOOL_REGISTRY[toolName];
 	if (!executor) {
 		return {
 			success: false,
-			message: `Unknown tool: ${toolName}. Available: ${Object.keys(browserExecutor!.BROWSER_TOOL_REGISTRY).join(", ")}`,
+			message: `Unknown tool: ${toolName}. Available: ${Object.keys(browserExecutor?.BROWSER_TOOL_REGISTRY ?? {}).join(", ")}`,
 		};
 	}
 	return executor(args);

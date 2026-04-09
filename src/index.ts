@@ -13,7 +13,11 @@
 // ---------------------------------------------------------------------------
 // Core engine
 // ---------------------------------------------------------------------------
-export { CadEngine, getCadEngine, configureWorkerUrl } from "./lib/cad-engine/engine";
+export {
+	CadEngine,
+	getCadEngine,
+	configureWorkerUrl,
+} from "./lib/cad-engine/engine";
 
 // ---------------------------------------------------------------------------
 // React hook

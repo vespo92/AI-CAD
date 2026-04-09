@@ -6,8 +6,8 @@ import { CodeEditor } from "@/components/editor/CodeEditor";
 import { FeatureTree } from "@/components/feature-tree/FeatureTree";
 import { MacroPanel } from "@/components/macro/MacroPanel";
 import { PartLibrary } from "@/components/parts/PartLibrary";
-import { SplicerPanel } from "@/components/splicer/SplicerPanel";
 import { SketchCanvas } from "@/components/sketch/SketchCanvas";
+import { SplicerPanel } from "@/components/splicer/SplicerPanel";
 import { CadViewport } from "@/components/viewport/CadViewport";
 import { useCadStore } from "@/lib/store/cad-store";
 import { useConsoleStore } from "@/lib/store/console-store";
@@ -198,6 +198,7 @@ function ConsolePanel() {
 	const clearConsole = useConsoleStore((s) => s.clear);
 	const endRef = useRef<HTMLDivElement>(null);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new entries
 	useEffect(() => {
 		endRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [entries.length]);

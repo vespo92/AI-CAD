@@ -48,7 +48,6 @@ export function MacroPanel({ className }: { className?: string }) {
 	const selectedMacro = allMacros.find((m) => m.id === selectedMacroId);
 
 	// Reset param values when macro changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on selectedMacro
 	useEffect(() => {
 		if (selectedMacro) {
 			const defaults: Record<string, unknown> = {};

@@ -36,7 +36,7 @@ export function useConversionJobs() {
 export function useJobStatus(jobId: string | null) {
 	return useQuery({
 		queryKey: ["jobStatus", jobId],
-		queryFn: () => getJobStatus(jobId!),
+		queryFn: () => getJobStatus(jobId as string),
 		enabled: !!jobId,
 		refetchInterval: (query) => {
 			const status = query.state.data?.status;
@@ -90,7 +90,7 @@ export function useLlmEnhance() {
 export function useFileAnalysis(filePath: string | null) {
 	return useQuery({
 		queryKey: ["fileAnalysis", filePath],
-		queryFn: () => analyzeFile(filePath!),
+		queryFn: () => analyzeFile(filePath as string),
 		enabled: !!filePath,
 	});
 }

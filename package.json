@@ -1,8 +1,25 @@
 {
   "name": "ai-cad",
-  "version": "0.3.0",
+  "version": "1.0.1",
   "description": "Open-source AI-driven parametric CAD platform with NLP input and STEP export",
   "type": "module",
+  "license": "MIT",
+  "author": "vespo92",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vespo92/AI-CAD.git"
+  },
+  "homepage": "https://github.com/vespo92/AI-CAD",
+  "keywords": [
+    "cad",
+    "parametric",
+    "ai",
+    "3d",
+    "step",
+    "nlp",
+    "three.js",
+    "opencascade"
+  ],
   "main": "./dist/ai-cad.js",
   "module": "./dist/ai-cad.js",
   "types": "./dist/ai-cad.d.ts",
@@ -27,7 +44,9 @@
     "src/components/viewport/**",
     "src/lib/store/**",
     "src/lib/utils/**",
-    "src/types/**"
+    "src/types/**",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "vite",
@@ -71,11 +90,21 @@
     "@react-three/drei": ">=9.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": false },
-    "react-dom": { "optional": false },
-    "three": { "optional": false },
-    "@react-three/fiber": { "optional": false },
-    "@react-three/drei": { "optional": false }
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    },
+    "three": {
+      "optional": false
+    },
+    "@react-three/fiber": {
+      "optional": false
+    },
+    "@react-three/drei": {
+      "optional": false
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

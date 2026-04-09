@@ -9,3 +9,4 @@ dist/
 *.tsbuildinfo
 coverage/
 .turbo/
+vite.config.d.ts

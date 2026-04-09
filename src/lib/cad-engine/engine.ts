@@ -43,8 +43,7 @@ export class CadEngine {
 	async init(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				const workerSrc =
-					_workerUrl ?? new URL("./worker.ts", import.meta.url);
+				const workerSrc = _workerUrl ?? new URL("./worker.ts", import.meta.url);
 				this.worker = new Worker(workerSrc, {
 					type: "module",
 				});

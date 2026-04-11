@@ -160,6 +160,8 @@ export function CadViewport({ className }: CadViewportProps) {
 	const isEngineReady = useCadStore((s) => s.isEngineReady);
 	const isProcessing = useCadStore((s) => s.isProcessing);
 	const viewportSettings = useCadStore((s) => s.viewportSettings);
+	const sketchWorkflow = useCadStore((s) => s.sketchWorkflow);
+	const cancelSketchWorkflow = useCadStore((s) => s.cancelSketchWorkflow);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const handleCreated = useCallback(
@@ -203,6 +205,22 @@ export function CadViewport({ className }: CadViewportProps) {
 					{isEngineReady ? "Engine Ready" : "Loading Engine..."}
 				</span>
 			</div>
+
+			{/* Sketch workflow banner */}
+			{sketchWorkflow.stage === "picking-plane" && (
+				<div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-forge-500/20 border border-forge-500/40 rounded-lg backdrop-blur-sm">
+					<span className="text-sm text-forge-300 font-medium">
+						Select a plane from the feature tree to sketch on
+					</span>
+					<button
+						type="button"
+						onClick={cancelSketchWorkflow}
+						className="text-xs text-gray-400 hover:text-gray-200 underline"
+					>
+						Cancel
+					</button>
+				</div>
+			)}
 
 			{/* Processing overlay */}
 			{isProcessing && (

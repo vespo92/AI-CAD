@@ -24,9 +24,13 @@ export type ConstraintType =
 	| "vertical";
 
 export type FeatureType =
+	| "origin"
+	| "plane"
 	| "sketch"
 	| "extrude"
+	| "extrude-cut"
 	| "revolve"
+	| "revolve-cut"
 	| "sweep"
 	| "loft"
 	| "fillet"
@@ -246,14 +250,27 @@ export interface Sketch {
 	fullyConstrained: boolean;
 }
 
+/** Revolve axis — any sketch line or a global axis */
+export type RevolveAxis = "X" | "Y" | "Z";
+export type ExtrudeDirection = "normal" | "reverse" | "symmetric" | "two-side";
+
 export interface Feature {
 	id: string;
 	name: string;
 	type: FeatureType;
 	visible: boolean;
 	suppressed: boolean;
+	/** Structural (Origin, default planes) features can't be deleted */
+	structural?: boolean;
 	params: Record<string, unknown>;
+	/** Which sketch feature this feature consumes (e.g. extrude → sketch id) */
 	sketchId?: string;
+	/** Serialized sketch data (only set for features of type "sketch") */
+	sketchData?: {
+		plane: SketchPlane;
+		entities: SketchEntity[];
+		constraints: Constraint[];
+	};
 	/** Replicad code that generates this feature's geometry */
 	code?: string;
 }

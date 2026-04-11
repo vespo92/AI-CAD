@@ -1,14 +1,48 @@
 import {
+	createDefaultFeature,
+	createDefaultStructure,
+} from "@/lib/cad-engine/feature-codegen";
+import {
 	type Assembly,
 	type CadModel,
 	type ChatMessage,
 	DEFAULT_VIEWPORT_SETTINGS,
 	type Feature,
+	type FeatureType,
 	type MeshData,
+	type SketchPlane,
 	type ViewportSettings,
 } from "@/types/cad";
 import { create } from "zustand";
 import { history } from "./history";
+
+/**
+ * PropertyManager state — tracks which feature is currently being edited
+ * via the property panel (SolidWorks-style PropertyManager). When set, the
+ * PropertyManager panel is visible and the user is editing that feature's params.
+ */
+export interface PropertyManagerState {
+	featureId: string;
+	/** If this is a newly-created feature we haven't confirmed yet,
+	 * cancelling will remove it from the tree. Otherwise cancel reverts edits. */
+	isNew: boolean;
+	/** Snapshot of original params for cancel-revert */
+	originalParams?: Record<string, unknown>;
+}
+
+/**
+ * Sketch workflow state — tracks what stage of sketch creation we're in.
+ * idle          → no sketch in progress
+ * picking-plane → user clicked New Sketch, waiting for them to pick a plane
+ * editing       → inside a sketch, drawing entities
+ */
+export interface SketchWorkflowState {
+	stage: "idle" | "picking-plane" | "editing";
+	/** Which plane the sketch is on (once picked) */
+	plane?: SketchPlane;
+	/** Which feature id this sketch belongs to (the "Sketch" feature) */
+	featureId?: string;
+}
 
 interface CadState {
 	// Model state
@@ -29,9 +63,13 @@ interface CadState {
 	bottomPanelHeight: number;
 	activeBottomTab: "chat" | "code" | "console";
 	activeLeftTab: "features" | "parts" | "assembly" | "splicer" | "macros";
-	activeRightTab: "export" | "jobs";
+	activeRightTab: "export" | "jobs" | "properties";
 	rightPanelOpen: boolean;
 	viewMode: "3d" | "sketch";
+
+	// Workflow state — SolidWorks-style PropertyManager + sketch creation
+	propertyManager: PropertyManagerState | null;
+	sketchWorkflow: SketchWorkflowState;
 
 	// History state
 	canUndo: boolean;
@@ -65,9 +103,25 @@ interface CadState {
 	setActiveLeftTab: (
 		tab: "features" | "parts" | "assembly" | "splicer" | "macros",
 	) => void;
-	setActiveRightTab: (tab: "export" | "jobs") => void;
+	setActiveRightTab: (tab: "export" | "jobs" | "properties") => void;
 	toggleRightPanel: () => void;
+	setRightPanelOpen: (open: boolean) => void;
 	setViewMode: (mode: "3d" | "sketch") => void;
+
+	// PropertyManager — open/close the right-side property panel for a feature
+	openPropertyManager: (featureId: string, isNew: boolean) => void;
+	closePropertyManager: (commit: boolean) => void;
+	updateEditingFeatureParams: (updates: Record<string, unknown>) => void;
+
+	// Sketch workflow
+	beginSketchWorkflow: () => void;
+	pickSketchPlane: (plane: SketchPlane, planeFeatureId?: string) => void;
+	finishSketch: (sketchData: Feature["sketchData"]) => string | null; // returns the sketch feature id
+	cancelSketchWorkflow: () => void;
+	/** Reset everything to a fresh model with default structure */
+	newModel: (name?: string) => void;
+	/** Insert a feature and optionally open the PropertyManager for it */
+	insertFeature: (type: FeatureType, openPropertyManager?: boolean) => string;
 
 	addChatMessage: (message: Omit<ChatMessage, "id" | "timestamp">) => void;
 	setChatLoading: (loading: boolean) => void;
@@ -87,10 +141,10 @@ interface CadState {
 	removeMate: (id: string) => void;
 }
 
-const createEmptyModel = (): CadModel => ({
+const createEmptyModel = (name = "Untitled Model"): CadModel => ({
 	id: crypto.randomUUID(),
-	name: "Untitled Model",
-	features: [],
+	name,
+	features: createDefaultStructure(),
 	activeFeatureIndex: -1,
 });
 
@@ -114,13 +168,16 @@ export const useCadStore = create<CadState>((set, get) => ({
 	selectedFaceIndex: null,
 	viewportSettings: DEFAULT_VIEWPORT_SETTINGS,
 	leftPanelWidth: 260,
-	rightPanelWidth: 300,
+	rightPanelWidth: 320,
 	bottomPanelHeight: 280,
 	activeBottomTab: "chat",
 	activeLeftTab: "features",
 	activeRightTab: "export",
 	rightPanelOpen: false,
 	viewMode: "3d",
+
+	propertyManager: null,
+	sketchWorkflow: { stage: "idle" },
 
 	canUndo: false,
 	canRedo: false,
@@ -215,7 +272,221 @@ return shape;
 	setActiveRightTab: (activeRightTab) => set({ activeRightTab }),
 	toggleRightPanel: () =>
 		set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
+	setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
 	setViewMode: (viewMode) => set({ viewMode }),
+
+	// ─── PropertyManager ──────────────────────────────────────────
+	openPropertyManager: (featureId, isNew) => {
+		const state = get();
+		const feature = state.model.features.find((f) => f.id === featureId);
+		if (!feature) return;
+		set({
+			propertyManager: {
+				featureId,
+				isNew,
+				originalParams: { ...feature.params },
+			},
+			activeRightTab: "properties",
+			rightPanelOpen: true,
+			selectedFeatureId: featureId,
+		});
+	},
+
+	closePropertyManager: (commit) => {
+		const state = get();
+		const pm = state.propertyManager;
+		if (!pm) return;
+
+		if (!commit) {
+			// Cancel: if it was a newly-inserted feature, remove it; otherwise revert params
+			if (pm.isNew) {
+				set({
+					model: {
+						...state.model,
+						features: state.model.features.filter((f) => f.id !== pm.featureId),
+					},
+					propertyManager: null,
+					selectedFeatureId: null,
+				});
+				return;
+			}
+			const originalParams = pm.originalParams;
+			if (originalParams) {
+				set({
+					model: {
+						...state.model,
+						features: state.model.features.map((f) =>
+							f.id === pm.featureId ? { ...f, params: originalParams } : f,
+						),
+					},
+					propertyManager: null,
+				});
+				return;
+			}
+		}
+		set({ propertyManager: null });
+	},
+
+	updateEditingFeatureParams: (updates) => {
+		const state = get();
+		const pm = state.propertyManager;
+		if (!pm) return;
+		set({
+			model: {
+				...state.model,
+				features: state.model.features.map((f) =>
+					f.id === pm.featureId
+						? { ...f, params: { ...f.params, ...updates } }
+						: f,
+				),
+			},
+		});
+	},
+
+	// ─── Sketch workflow ──────────────────────────────────────────
+	beginSketchWorkflow: () => {
+		set({
+			sketchWorkflow: { stage: "picking-plane" },
+			activeLeftTab: "features",
+		});
+	},
+
+	pickSketchPlane: (plane, planeFeatureId) => {
+		// Create a new Sketch feature and enter sketch-editing mode
+		const sketchFeature: Feature = {
+			id: crypto.randomUUID(),
+			name: `Sketch${get().model.features.filter((f) => f.type === "sketch").length + 1}`,
+			type: "sketch",
+			visible: true,
+			suppressed: false,
+			params: { plane, parentPlaneId: planeFeatureId },
+			sketchData: {
+				plane,
+				entities: [],
+				constraints: [],
+			},
+		};
+		set((state) => ({
+			model: {
+				...state.model,
+				features: [...state.model.features, sketchFeature],
+				activeFeatureIndex: state.model.features.length,
+			},
+			sketchWorkflow: {
+				stage: "editing",
+				plane,
+				featureId: sketchFeature.id,
+			},
+			viewMode: "sketch",
+			selectedFeatureId: sketchFeature.id,
+		}));
+	},
+
+	finishSketch: (sketchData) => {
+		const state = get();
+		const sw = state.sketchWorkflow;
+		if (sw.stage !== "editing" || !sw.featureId) return null;
+
+		const entityCount = sketchData?.entities.length ?? 0;
+
+		// If no entities were drawn, delete the sketch feature
+		if (entityCount === 0) {
+			set({
+				model: {
+					...state.model,
+					features: state.model.features.filter((f) => f.id !== sw.featureId),
+				},
+				sketchWorkflow: { stage: "idle" },
+				viewMode: "3d",
+			});
+			return null;
+		}
+
+		set({
+			model: {
+				...state.model,
+				features: state.model.features.map((f) =>
+					f.id === sw.featureId ? { ...f, sketchData } : f,
+				),
+			},
+			sketchWorkflow: { stage: "idle" },
+			viewMode: "3d",
+		});
+		return sw.featureId;
+	},
+
+	cancelSketchWorkflow: () => {
+		const state = get();
+		const sw = state.sketchWorkflow;
+		// If we were editing an empty-new sketch, remove it
+		if (sw.stage === "editing" && sw.featureId) {
+			const feature = state.model.features.find((f) => f.id === sw.featureId);
+			const hasEntities = (feature?.sketchData?.entities.length ?? 0) > 0;
+			if (!hasEntities) {
+				set({
+					model: {
+						...state.model,
+						features: state.model.features.filter((f) => f.id !== sw.featureId),
+					},
+				});
+			}
+		}
+		set({
+			sketchWorkflow: { stage: "idle" },
+			viewMode: "3d",
+		});
+	},
+
+	newModel: (name) => {
+		set({
+			model: createEmptyModel(name),
+			meshData: null,
+			selectedFeatureId: null,
+			selectedFaceIndex: null,
+			propertyManager: null,
+			sketchWorkflow: { stage: "idle" },
+			viewMode: "3d",
+		});
+	},
+
+	insertFeature: (type, openPropertyManager = true) => {
+		const feature: Feature = createDefaultFeature(type);
+		set((state) => {
+			// Find the most recent sketch feature to auto-link extrude/revolve
+			const lastSketch = [...state.model.features]
+				.reverse()
+				.find((f) => f.type === "sketch");
+			if (
+				lastSketch &&
+				(type === "extrude" ||
+					type === "extrude-cut" ||
+					type === "revolve" ||
+					type === "revolve-cut")
+			) {
+				feature.sketchId = lastSketch.id;
+			}
+			return {
+				model: {
+					...state.model,
+					features: [...state.model.features, feature],
+					activeFeatureIndex: state.model.features.length,
+				},
+				selectedFeatureId: feature.id,
+				...(openPropertyManager
+					? {
+							propertyManager: {
+								featureId: feature.id,
+								isNew: true,
+								originalParams: { ...feature.params },
+							},
+							activeRightTab: "properties" as const,
+							rightPanelOpen: true,
+						}
+					: {}),
+			};
+		});
+		return feature.id;
+	},
 
 	// Chat actions
 	addChatMessage: (message) =>

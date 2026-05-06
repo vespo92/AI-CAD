@@ -67,15 +67,32 @@ const GRID_SIZE = 10;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 10;
 
-export function SketchCanvas({ className, plane = "XY" }: SketchCanvasProps) {
+export function SketchCanvas({
+	className,
+	plane: planeProp,
+}: SketchCanvasProps) {
 	const addMessage = useCadStore((s) => s.addChatMessage);
 	const setEditorCode = useCadStore((s) => s.setEditorCode);
+	const finishSketch = useCadStore((s) => s.finishSketch);
+	const cancelSketchWorkflow = useCadStore((s) => s.cancelSketchWorkflow);
+	const sketchWorkflow = useCadStore((s) => s.sketchWorkflow);
+	const model = useCadStore((s) => s.model);
 	const { execute } = useCadEngine();
 	const consoleLog = useConsoleStore((s) => s.log);
 	const svgRef = useRef<SVGSVGElement>(null);
+
+	// The sketch plane: prop override → workflow plane → default XY
+	const plane: SketchPlane = planeProp ?? sketchWorkflow.plane ?? "XY";
+
+	// If we're editing an existing sketch feature, seed initial entities from it
+	const initialFeature =
+		sketchWorkflow.stage === "editing" && sketchWorkflow.featureId
+			? model.features.find((f) => f.id === sketchWorkflow.featureId)
+			: null;
+
 	const [state, setState] = useState<CanvasState>({
-		entities: [],
-		constraints: [],
+		entities: initialFeature?.sketchData?.entities ?? [],
+		constraints: initialFeature?.sketchData?.constraints ?? [],
 		activeTool: "select",
 		drawingPoints: [],
 		pan: { x: 0, y: 0 },
@@ -363,7 +380,40 @@ export function SketchCanvas({ className, plane = "XY" }: SketchCanvasProps) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [handleKeyDown]);
 
-	// Generate Replicad code from sketch entities
+	// Finish the sketch — commit entities to the store and exit sketch mode.
+	// The feature tree rebuild will then pick up this sketch when an Extrude
+	// or Revolve feature is added.
+	const handleFinishSketch = useCallback(() => {
+		const sketchData = {
+			plane,
+			entities: state.entities,
+			constraints: state.constraints,
+		};
+		const sketchId = finishSketch(sketchData);
+		consoleLog(
+			sketchId
+				? `Finished sketch: ${state.entities.length} entities, ${state.constraints.length} constraints`
+				: "Sketch was empty — discarded",
+			"info",
+			"system",
+		);
+		if (sketchId) {
+			addMessage({
+				role: "system",
+				content: `Sketch${model.features.filter((f) => f.type === "sketch").length} created on ${plane} plane (${state.entities.length} entities). Add an Extrude or Revolve to build from it.`,
+			});
+		}
+	}, [
+		plane,
+		state.entities,
+		state.constraints,
+		finishSketch,
+		consoleLog,
+		addMessage,
+		model.features,
+	]);
+
+	// Generate Replicad code from sketch entities (legacy "Generate & Run" path)
 	const generateCode = useCallback(async () => {
 		if (state.entities.length === 0) return;
 
@@ -651,9 +701,26 @@ export function SketchCanvas({ className, plane = "XY" }: SketchCanvasProps) {
 					type="button"
 					onClick={generateCode}
 					disabled={state.entities.length === 0}
-					className="px-2 py-0.5 text-[10px] bg-forge-600/80 text-white rounded hover:bg-forge-600 disabled:opacity-30"
+					className="px-2 py-0.5 text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
+					title="Generate replicad code and run in viewport (legacy)"
 				>
-					Generate & Run
+					Run
+				</button>
+				<button
+					type="button"
+					onClick={cancelSketchWorkflow}
+					className="px-2 py-0.5 text-[10px] bg-gray-700/80 text-gray-300 rounded hover:bg-gray-600"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					onClick={handleFinishSketch}
+					disabled={state.entities.length === 0}
+					className="px-2 py-0.5 text-[10px] bg-green-600/80 text-white rounded hover:bg-green-600 disabled:opacity-30"
+					title="Exit sketch — the sketch becomes a feature you can extrude/revolve"
+				>
+					✓ Finish
 				</button>
 			</div>
 

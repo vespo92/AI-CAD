@@ -4,6 +4,7 @@ import { ExportPanel } from "@/components/convert/ExportPanel";
 import { JobList } from "@/components/convert/JobList";
 import { CodeEditor } from "@/components/editor/CodeEditor";
 import { FeatureTree } from "@/components/feature-tree/FeatureTree";
+import { PropertyManager } from "@/components/feature-tree/PropertyManager";
 import { MacroPanel } from "@/components/macro/MacroPanel";
 import { PartLibrary } from "@/components/parts/PartLibrary";
 import { SketchCanvas } from "@/components/sketch/SketchCanvas";
@@ -13,6 +14,7 @@ import { useCadStore } from "@/lib/store/cad-store";
 import { useConsoleStore } from "@/lib/store/console-store";
 import { cn } from "@/lib/utils/cn";
 import {
+	AdjustmentsHorizontalIcon,
 	ArrowDownTrayIcon,
 	BoltIcon,
 	ChatBubbleLeftRightIcon,
@@ -25,6 +27,7 @@ import {
 	SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef } from "react";
+import { CommandManager } from "./CommandManager";
 import { Toolbar } from "./Toolbar";
 
 const BOTTOM_TABS = [
@@ -42,6 +45,11 @@ const LEFT_TABS = [
 ];
 
 const RIGHT_TABS = [
+	{
+		id: "properties" as const,
+		label: "Properties",
+		icon: AdjustmentsHorizontalIcon,
+	},
 	{ id: "export" as const, label: "Export", icon: ArrowDownTrayIcon },
 	{ id: "jobs" as const, label: "Jobs", icon: ClockIcon },
 ];
@@ -64,6 +72,9 @@ export function Layout() {
 		<div className="flex flex-col h-full bg-gray-900">
 			{/* Top toolbar */}
 			<Toolbar onToggleRightPanel={toggleRightPanel} />
+
+			{/* CommandManager ribbon */}
+			<CommandManager />
 
 			{/* Main content area */}
 			<div className="flex-1 flex min-h-0">
@@ -175,6 +186,9 @@ export function Layout() {
 
 						{/* Right tab content */}
 						<div className="flex-1 min-h-0 overflow-hidden">
+							{activeRightTab === "properties" && (
+								<PropertyManager className="h-full" />
+							)}
 							{activeRightTab === "export" && (
 								<ExportPanel className="h-full flex flex-col" />
 							)}
